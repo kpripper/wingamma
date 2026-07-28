@@ -11,18 +11,27 @@ namespace WinGamma
         private const int WS_EX_TOPMOST = 0x00000008;
         private const int WS_EX_NOACTIVATE = 0x08000000;
         private const int WS_EX_TOOLWINDOW = 0x00000080;
-        private const int WS_DISABLED = 0x08000000;
+        private const int WS_EX_LAYERED = 0x00080000;
         private const int WM_NCHITTEST = 0x0084;
+        private const int WM_HOTKEY = 0x0312;
         private const int HTTRANSPARENT = -1;
+        private const int EmergencyHotKeyId = 0x5747;
+        private const uint MOD_ALT = 0x0001;
+        private const uint MOD_CONTROL = 0x0002;
+        private const uint MOD_NOREPEAT = 0x4000;
+        private const uint VK_F12 = 0x7B;
+        private const uint LWA_ALPHA = 0x00000002;
 
         private readonly DisplayMonitor _monitor;
         private readonly Timer _renderTimer;
+        private readonly Timer _safetyTimer;
         private readonly object _settingsLock = new object();
         private HslBandSettings _settings;
         private OverlayRenderer _renderer;
         private DateTime _retryAfterUtc;
 
-        public OverlayWindow(DisplayMonitor monitor, HslBandSettings settings)
+        public OverlayWindow(DisplayMonitor monitor, HslBandSettings settings,
+            int safetyTimeoutMilliseconds)
         {
             _monitor = monitor;
             _settings = settings.Clone();
@@ -36,6 +45,16 @@ namespace WinGamma
             _renderTimer = new Timer();
             _renderTimer.Interval = 1;
             _renderTimer.Tick += RenderTick;
+            if (safetyTimeoutMilliseconds > 0)
+            {
+                _safetyTimer = new Timer();
+                _safetyTimer.Interval = safetyTimeoutMilliseconds;
+                _safetyTimer.Tick += delegate
+                {
+                    _safetyTimer.Stop();
+                    Close();
+                };
+            }
             Shown += OverlayShown;
             FormClosed += OverlayClosed;
         }
@@ -50,15 +69,8 @@ namespace WinGamma
             get
             {
                 CreateParams value = base.CreateParams;
-                // This is an opaque replacement frame. WS_EX_LAYERED is
-                // intentionally omitted because flip-model swap chains do not
-                // reliably present into layered HWNDs.
                 value.ExStyle |= WS_EX_TRANSPARENT | WS_EX_TOPMOST
-                    | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
-                // A disabled top-level window is excluded from mouse and
-                // keyboard input by USER32, independently of WinForms hit-test
-                // behavior and independently of the target process/thread.
-                value.Style |= WS_DISABLED;
+                    | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_LAYERED;
                 return value;
             }
         }
@@ -68,6 +80,12 @@ namespace WinGamma
             if (message.Msg == WM_NCHITTEST)
             {
                 message.Result = new IntPtr(HTTRANSPARENT);
+                return;
+            }
+            if (message.Msg == WM_HOTKEY
+                && message.WParam.ToInt32() == EmergencyHotKeyId)
+            {
+                Close();
                 return;
             }
             base.WndProc(ref message);
@@ -99,18 +117,15 @@ namespace WinGamma
         {
             try
             {
-                NativeMethods.EnableWindow(Handle, false);
-                if (NativeMethods.IsWindowEnabled(Handle))
-                    throw new InvalidOperationException(
-                        "The HSL overlay could not be made input-transparent.");
+                if (!NativeMethods.SetLayeredWindowAttributes(Handle, 0,
+                    255, LWA_ALPHA))
+                    throw new Win32Exception(
+                        "Could not initialize the layered overlay window.");
 
-                POINTL center = new POINTL();
-                center.X = Bounds.Left + Bounds.Width / 2;
-                center.Y = Bounds.Top + Bounds.Height / 2;
-                IntPtr hitWindow = NativeMethods.WindowFromPoint(center);
-                if (hitWindow == Handle || hitWindow == IntPtr.Zero)
-                    throw new InvalidOperationException(
-                        "The HSL overlay failed its click-through safety test.");
+                if (!NativeMethods.RegisterHotKey(Handle, EmergencyHotKeyId,
+                    MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_F12))
+                    throw new Win32Exception(
+                        "Could not register the emergency overlay hotkey.");
 
                 if (!NativeMethods.SetWindowDisplayAffinity(Handle,
                     NativeMethods.WDA_EXCLUDEFROMCAPTURE))
@@ -121,6 +136,8 @@ namespace WinGamma
                 }
                 CreateRenderer();
                 _renderTimer.Start();
+                if (_safetyTimer != null)
+                    _safetyTimer.Start();
             }
             catch (Exception exception)
             {
@@ -190,6 +207,12 @@ namespace WinGamma
         {
             _renderTimer.Stop();
             _renderTimer.Dispose();
+            NativeMethods.UnregisterHotKey(Handle, EmergencyHotKeyId);
+            if (_safetyTimer != null)
+            {
+                _safetyTimer.Stop();
+                _safetyTimer.Dispose();
+            }
             if (_renderer != null)
             {
                 _renderer.Dispose();

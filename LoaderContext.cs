@@ -68,6 +68,8 @@ namespace WinGamma
             try
             {
                 AppSettings settings = SettingsStore.Load();
+                _hslManager.LiveOverlayAuthorized =
+                    settings.HslClickThroughValidated;
                 HashSet<string> activeHsl = new HashSet<string>(
                     StringComparer.OrdinalIgnoreCase);
                 foreach (DisplayMonitor monitor in MonitorService.EnumerateMonitors())
@@ -85,8 +87,8 @@ namespace WinGamma
 
                     MonitorSettingsRecord record =
                         FindRecord(settings, monitor.StableId);
-                    if (HslOverlayManager.LiveOverlayAvailable
-                        && settings.HslOverlaySafetyVersion >= 2
+                    if (settings.HslClickThroughValidated
+                        && settings.HslOverlaySafetyVersion >= 3
                         && record != null && record.HslOverlay != null
                         && record.HslOverlay.Enabled)
                     {

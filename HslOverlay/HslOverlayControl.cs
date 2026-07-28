@@ -19,6 +19,7 @@ namespace WinGamma
 
         private readonly CheckBox _enabled;
         private readonly Button _reset;
+        private readonly Button _test;
         private readonly Label _hint;
         private readonly Label _hueHeader;
         private readonly Label _satHeader;
@@ -31,6 +32,7 @@ namespace WinGamma
         private bool _runtimeUnavailable;
 
         public event EventHandler SettingsChanged;
+        public event EventHandler TestRequested;
 
         public HslOverlayControl()
         {
@@ -59,7 +61,16 @@ namespace WinGamma
             _reset = new Button();
             _reset.AutoSize = true;
             _reset.Click += ResetClicked;
+            _test = new Button();
+            _test.AutoSize = true;
+            _test.Click += delegate
+            {
+                EventHandler handler = TestRequested;
+                if (handler != null)
+                    handler(this, EventArgs.Empty);
+            };
             actions.Controls.Add(_enabled);
+            actions.Controls.Add(_test);
             actions.Controls.Add(_reset);
             layout.Controls.Add(actions, 0, 0);
             layout.SetColumnSpan(actions, 4);
@@ -113,6 +124,7 @@ namespace WinGamma
         {
             _enabled.Text = Localizer.Get("HslEnable");
             _reset.Text = Localizer.Get("HslReset");
+            _test.Text = Localizer.Get("HslSafetyTest");
             _hint.Text = _runtimeUnavailable
                 ? Localizer.Get("HslRuntimeUnavailable")
                 : Localizer.Get("HslHint");
@@ -171,20 +183,33 @@ namespace WinGamma
                 _hint.Text = Localizer.Get("HslHint");
         }
 
-        public void SetRuntimeUnavailable()
+        public void SetRuntimeAvailability(bool validated)
         {
-            _runtimeUnavailable = true;
+            _runtimeUnavailable = !validated;
             _loading = true;
             try
             {
-                _enabled.Checked = false;
-                _enabled.Enabled = false;
+                if (!validated)
+                    _enabled.Checked = false;
+                _enabled.Enabled = validated;
             }
             finally
             {
                 _loading = false;
             }
-            _hint.Text = Localizer.Get("HslRuntimeUnavailable");
+            _test.Enabled = !validated;
+            _test.Visible = !validated;
+            _hint.Text = validated
+                ? Localizer.Get("HslHint")
+                : Localizer.Get("HslRuntimeUnavailable");
+        }
+
+        public void SetTestRunning(bool running)
+        {
+            _test.Enabled = !running;
+            _test.Text = running
+                ? Localizer.Get("HslSafetyTesting")
+                : Localizer.Get("HslSafetyTest");
         }
 
         private void ResetClicked(object sender, EventArgs e)

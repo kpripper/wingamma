@@ -42,17 +42,19 @@ namespace WinGamma
         internal static extern IntPtr SetThreadDpiAwarenessContext(
             IntPtr dpiContext);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool EnableWindow(IntPtr window,
-            [MarshalAs(UnmanagedType.Bool)] bool enable);
+        internal static extern bool SetLayeredWindowAttributes(IntPtr window,
+            uint colorKey, byte alpha, uint flags);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool RegisterHotKey(IntPtr window, int id,
+            uint modifiers, uint virtualKey);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool IsWindowEnabled(IntPtr window);
-
-        [DllImport("user32.dll")]
-        internal static extern IntPtr WindowFromPoint(POINTL point);
+        internal static extern bool UnregisterHotKey(IntPtr window, int id);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]

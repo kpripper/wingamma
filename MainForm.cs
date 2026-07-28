@@ -63,6 +63,8 @@ namespace WinGamma
                 StringComparer.OrdinalIgnoreCase);
             _previewTimer = new Timer();
             _hslManager = new HslOverlayManager();
+            _hslManager.LiveOverlayAuthorized =
+                _appSettings.HslClickThroughValidated;
             _previewTimer.Interval = 90;
             _previewTimer.Tick += PreviewTimerTick;
 
@@ -245,6 +247,7 @@ namespace WinGamma
 
             _hslControl = new HslOverlayControl();
             _hslControl.SettingsChanged += HslSettingsChanged;
+            _hslControl.TestRequested += HslTestRequested;
             _hslTab.Controls.Add(_hslControl);
         }
 
@@ -283,14 +286,14 @@ namespace WinGamma
                         .Clone();
                 // Never auto-reactivate settings written by the unsafe
                 // fullscreen-window implementation.
-                if (_appSettings.HslOverlaySafetyVersion < 2)
+                if (_appSettings.HslOverlaySafetyVersion < 3)
                     session.HslSettings.Enabled = false;
                 _sessions[monitor.StableId] = session;
             }
             LoadSettingsIntoControls(session.Settings);
             _hslControl.LoadSettings(session.HslSettings);
             UpdateMonitorState(session);
-            if (HslOverlayManager.LiveOverlayAvailable
+            if (_hslManager.LiveOverlayAuthorized
                 && !session.Monitor.IsHdr && session.HslSettings.Enabled)
                 _hslManager.StartOrUpdate(session.Monitor,
                     session.HslSettings);
@@ -303,7 +306,8 @@ namespace WinGamma
             _linkCheck.Enabled = editable;
             _installButton.Enabled = editable;
             _hslControl.SetHdrBlocked(!editable);
-            _hslControl.SetRuntimeUnavailable();
+            _hslControl.SetRuntimeAvailability(
+                _appSettings.HslClickThroughValidated);
             if (!editable)
                 _hslManager.Stop(session.Monitor.StableId);
             if (session.Monitor.IsHdr)
@@ -616,7 +620,7 @@ namespace WinGamma
             if (session == null)
                 return;
             session.HslSettings = _hslControl.ReadSettings();
-            _appSettings.HslOverlaySafetyVersion = 2;
+            _appSettings.HslOverlaySafetyVersion = 3;
 
             MonitorSettingsRecord record =
                 FindMonitorRecord(session.Monitor.StableId);
@@ -633,9 +637,68 @@ namespace WinGamma
 
             if (session.Monitor.IsHdr || !session.HslSettings.Enabled)
                 _hslManager.Stop(session.Monitor.StableId);
-            else if (HslOverlayManager.LiveOverlayAvailable)
+            else if (_hslManager.LiveOverlayAuthorized)
                 _hslManager.StartOrUpdate(session.Monitor,
                     session.HslSettings);
+        }
+
+        private void HslTestRequested(object sender, EventArgs e)
+        {
+            MonitorSession session = CurrentSession;
+            if (session == null || session.Monitor.IsHdr)
+                return;
+
+            HslBandSettings testSettings = _hslControl.ReadSettings();
+            testSettings.Enabled = true;
+            // Use an unmistakable temporary transform. It is never persisted;
+            // after validation the user's actual slider values are used.
+            for (int i = 0; i < testSettings.Bands.Length; i++)
+            {
+                HslBand band = testSettings.Bands[i];
+                band.HueShiftDeg = 45.0f;
+                band.SaturationScale = 1.2f;
+                testSettings.Bands[i] = band;
+            }
+            _hslControl.SetTestRunning(true);
+            try
+            {
+                _hslManager.RunSafetyTest(session.Monitor, testSettings,
+                    delegate
+                    {
+                        if (IsDisposed || !IsHandleCreated)
+                            return;
+                        BeginInvoke((MethodInvoker)delegate
+                        {
+                            _hslControl.SetTestRunning(false);
+                            DialogResult result = MessageBox.Show(this,
+                                Localizer.Get("HslSafetyQuestion"),
+                                Localizer.Get("HslTab"),
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Question);
+                            bool validated = result == DialogResult.Yes;
+                            _appSettings.HslClickThroughValidated = validated;
+                            _appSettings.HslOverlaySafetyVersion = 3;
+                            _hslManager.LiveOverlayAuthorized = validated;
+                            _hslControl.SetRuntimeAvailability(validated);
+                            if (validated)
+                            {
+                                session.HslSettings.Enabled = false;
+                                MonitorSettingsRecord record =
+                                    FindMonitorRecord(
+                                        session.Monitor.StableId);
+                                if (record != null
+                                    && record.HslOverlay != null)
+                                    record.HslOverlay.Enabled = false;
+                            }
+                            SettingsStore.Save(_appSettings);
+                        });
+                    });
+            }
+            catch (Exception exception)
+            {
+                _hslControl.SetTestRunning(false);
+                ShowError(exception);
+            }
         }
 
         private void AutostartChanged(object sender, EventArgs e)

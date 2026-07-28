@@ -7,13 +7,7 @@ namespace WinGamma
 {
     internal sealed class HslOverlayManager : IDisposable
     {
-        // A fullscreen topmost HWND is not safe to ship until click-through
-        // behavior is validated on real Windows configurations. Keep all live
-        // startup paths closed; the editor may still store band settings.
-        public static bool LiveOverlayAvailable
-        {
-            get { return false; }
-        }
+        public bool LiveOverlayAuthorized { get; set; }
 
         private sealed class Session
         {
@@ -34,7 +28,7 @@ namespace WinGamma
                 throw new ObjectDisposedException("HslOverlayManager");
             if (monitor == null || settings == null)
                 return;
-            if (!LiveOverlayAvailable)
+            if (!LiveOverlayAuthorized)
             {
                 Stop(monitor.StableId);
                 return;
@@ -68,7 +62,7 @@ namespace WinGamma
                             NativeMethods
                                 .DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
                         OverlayWindow window =
-                            new OverlayWindow(monitor, settings);
+                            new OverlayWindow(monitor, settings, 0);
                         lock (_sync)
                         {
                             session.Window = window;
@@ -103,6 +97,38 @@ namespace WinGamma
                 _sessions[monitor.StableId] = session;
                 session.Thread.Start();
             }
+        }
+
+        public void RunSafetyTest(DisplayMonitor monitor,
+            HslBandSettings settings, Action completed)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException("HslOverlayManager");
+            Thread thread = new Thread(delegate()
+            {
+                try
+                {
+                    NativeMethods.SetThreadDpiAwarenessContext(
+                        NativeMethods
+                            .DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+                    using (OverlayWindow window = new OverlayWindow(
+                        monitor, settings, 10000))
+                        Application.Run(window);
+                }
+                catch (Exception exception)
+                {
+                    SettingsStore.Log("HSL safety test failed: " + exception);
+                }
+                finally
+                {
+                    if (completed != null)
+                        completed();
+                }
+            });
+            thread.IsBackground = true;
+            thread.Name = "WinGamma HSL safety test";
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
         }
 
         public void Stop(string monitorId)

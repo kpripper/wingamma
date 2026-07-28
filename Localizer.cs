@@ -51,7 +51,10 @@ namespace WinGamma
             { "HslSat", new[] { "Насиченість", "Saturation" } },
             { "HslLum", new[] { "Яскравість", "Luminance" } },
             { "HslHdrBlocked", new[] { "HSL Overlay заблоковано, поки активний HDR.", "HSL Overlay is blocked while HDR is active." } },
-            { "HslRuntimeUnavailable", new[] { "Живий HSL-оверлей тимчасово вимкнено: fullscreen-вікно небезпечно перехоплювало ввід. Значення смуг можна редагувати й зберігати, але оверлей не запускається.", "Live HSL overlay is temporarily disabled because its fullscreen window could intercept input. Band values can still be edited and saved, but no overlay window is started." } }
+            { "HslRuntimeUnavailable", new[] { "Спочатку запустіть 10-секундний тест. Спробуйте клікати інші програми. Тест сам закриється; аварійна клавіша — Ctrl+Alt+F12.", "Run the 10-second test first and try clicking other applications. It closes automatically; emergency key: Ctrl+Alt+F12." } },
+            { "HslSafetyTest", new[] { "Тест оверлею — 10 с", "Test overlay — 10 s" } },
+            { "HslSafetyTesting", new[] { "Тест виконується…", "Testing…" } },
+            { "HslSafetyQuestion", new[] { "Під час тесту кольори змінювалися, а кліки проходили в інші програми без системного звуку помилки?", "During the test, did colors change and clicks reach other applications without an error sound?" } }
         };
 
         private static string _language = "uk";

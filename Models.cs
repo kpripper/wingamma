@@ -66,6 +66,7 @@ namespace WinGamma
         public string Language { get; set; }
         public bool AutoStartLoader { get; set; }
         public int HslOverlaySafetyVersion { get; set; }
+        public bool HslClickThroughValidated { get; set; }
         public List<MonitorSettingsRecord> Monitors { get; set; }
 
         public AppSettings()
@@ -73,6 +74,7 @@ namespace WinGamma
             Language = "uk";
             AutoStartLoader = false;
             HslOverlaySafetyVersion = 0;
+            HslClickThroughValidated = false;
             Monitors = new List<MonitorSettingsRecord>();
         }
     }

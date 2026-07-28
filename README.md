@@ -40,13 +40,11 @@ framework-dependent збірки потрібен .NET 8 Desktop Runtime. За �
 
 HSL-налаштування зберігаються у `%LOCALAPPDATA%\WinGamma\settings.xml`, але не
 записуються в ICC/ICM: `vcgt` не вміє представляти корекцію за смугами hue.
-Після оновлення зі збірки до safety hotfix старий прапорець увімкнення
-ігнорується: оверлей потрібно явно ввімкнути знову у вкладці HSL.
-
-**Важливо:** живий fullscreen HSL Overlay наразі примусово вимкнений у коді.
-Попередні HWND-реалізації могли перехопити весь ввід. Редагування та збереження
-8 смуг лишається доступним, але ні editor, ні loader не створюють
-оверлей-вікно, доки безпечний renderer не буде перевірений на Windows.
+Після оновлення старий прапорець увімкнення ігнорується. Спочатку натисніть
+`Тест оверлею — 10 с`: тимчасовий shader робить зміну кольорів очевидною,
+вікно автоматично закривається через 10 секунд, а `Ctrl+Alt+F12` закриває його
+негайно. Спробуйте під час тесту клікати інші програми. Постійний чекбокс
+розблокується лише після вашого підтвердження, що і кольори, і кліки працювали.
 
 Аварійне завершення оверлею з клавіатури:
 
@@ -123,10 +121,9 @@ WinGamma does not collect telemetry or send any data.
 - The click-through overlay is excluded from capture with
   `WDA_EXCLUDEFROMCAPTURE` to prevent feedback. `DXGI_ERROR_ACCESS_LOST` after
   UAC, lock/unlock or a mode switch triggers full capture-session recreation.
-- Live creation of the fullscreen overlay HWND is currently blocked in both the
-  editor and loader. Disabling an HWND prevents it from receiving input but
-  does not reliably forward that input to unrelated underlying applications,
-  so the previous safety check was removed from the supported runtime path.
+- The overlay uses a layered, transparent, non-activating HWND. Before live
+  mode is enabled on a machine, WinGamma requires a bounded 10-second test.
+  The test always auto-closes and registers `Ctrl+Alt+F12` as an emergency exit.
 - Secure desktop and protected/DRM content can appear black. Exclusive
   full-screen applications and software that reserves Desktop Duplication may
   prevent the overlay from working.
