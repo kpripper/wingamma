@@ -7,6 +7,14 @@ namespace WinGamma
 {
     internal sealed class HslOverlayManager : IDisposable
     {
+        // A fullscreen topmost HWND is not safe to ship until click-through
+        // behavior is validated on real Windows configurations. Keep all live
+        // startup paths closed; the editor may still store band settings.
+        public static bool LiveOverlayAvailable
+        {
+            get { return false; }
+        }
+
         private sealed class Session
         {
             public Thread Thread;
@@ -26,6 +34,11 @@ namespace WinGamma
                 throw new ObjectDisposedException("HslOverlayManager");
             if (monitor == null || settings == null)
                 return;
+            if (!LiveOverlayAvailable)
+            {
+                Stop(monitor.StableId);
+                return;
+            }
             if (!settings.Enabled || monitor.IsHdr)
             {
                 Stop(monitor.StableId);

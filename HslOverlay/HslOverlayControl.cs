@@ -28,6 +28,7 @@ namespace WinGamma
         private readonly TrackBar[] _lum = new TrackBar[8];
         private HslBandSettings _settings;
         private bool _loading;
+        private bool _runtimeUnavailable;
 
         public event EventHandler SettingsChanged;
 
@@ -112,7 +113,9 @@ namespace WinGamma
         {
             _enabled.Text = Localizer.Get("HslEnable");
             _reset.Text = Localizer.Get("HslReset");
-            _hint.Text = Localizer.Get("HslHint");
+            _hint.Text = _runtimeUnavailable
+                ? Localizer.Get("HslRuntimeUnavailable")
+                : Localizer.Get("HslHint");
             _hueHeader.Text = Localizer.Get("HslHue") + " (°)";
             _satHeader.Text = Localizer.Get("HslSat") + " (%)";
             _lumHeader.Text = Localizer.Get("HslLum") + " (%)";
@@ -160,10 +163,28 @@ namespace WinGamma
         public void SetHdrBlocked(bool blocked)
         {
             Enabled = !blocked;
-            if (blocked)
+            if (_runtimeUnavailable)
+                _hint.Text = Localizer.Get("HslRuntimeUnavailable");
+            else if (blocked)
                 _hint.Text = Localizer.Get("HslHdrBlocked");
             else
                 _hint.Text = Localizer.Get("HslHint");
+        }
+
+        public void SetRuntimeUnavailable()
+        {
+            _runtimeUnavailable = true;
+            _loading = true;
+            try
+            {
+                _enabled.Checked = false;
+                _enabled.Enabled = false;
+            }
+            finally
+            {
+                _loading = false;
+            }
+            _hint.Text = Localizer.Get("HslRuntimeUnavailable");
         }
 
         private void ResetClicked(object sender, EventArgs e)

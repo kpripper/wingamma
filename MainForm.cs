@@ -290,7 +290,8 @@ namespace WinGamma
             LoadSettingsIntoControls(session.Settings);
             _hslControl.LoadSettings(session.HslSettings);
             UpdateMonitorState(session);
-            if (!session.Monitor.IsHdr && session.HslSettings.Enabled)
+            if (HslOverlayManager.LiveOverlayAvailable
+                && !session.Monitor.IsHdr && session.HslSettings.Enabled)
                 _hslManager.StartOrUpdate(session.Monitor,
                     session.HslSettings);
         }
@@ -302,6 +303,7 @@ namespace WinGamma
             _linkCheck.Enabled = editable;
             _installButton.Enabled = editable;
             _hslControl.SetHdrBlocked(!editable);
+            _hslControl.SetRuntimeUnavailable();
             if (!editable)
                 _hslManager.Stop(session.Monitor.StableId);
             if (session.Monitor.IsHdr)
@@ -631,7 +633,7 @@ namespace WinGamma
 
             if (session.Monitor.IsHdr || !session.HslSettings.Enabled)
                 _hslManager.Stop(session.Monitor.StableId);
-            else
+            else if (HslOverlayManager.LiveOverlayAvailable)
                 _hslManager.StartOrUpdate(session.Monitor,
                     session.HslSettings);
         }

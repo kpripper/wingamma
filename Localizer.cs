@@ -50,7 +50,8 @@ namespace WinGamma
             { "HslHue", new[] { "Відтінок", "Hue" } },
             { "HslSat", new[] { "Насиченість", "Saturation" } },
             { "HslLum", new[] { "Яскравість", "Luminance" } },
-            { "HslHdrBlocked", new[] { "HSL Overlay заблоковано, поки активний HDR.", "HSL Overlay is blocked while HDR is active." } }
+            { "HslHdrBlocked", new[] { "HSL Overlay заблоковано, поки активний HDR.", "HSL Overlay is blocked while HDR is active." } },
+            { "HslRuntimeUnavailable", new[] { "Живий HSL-оверлей тимчасово вимкнено: fullscreen-вікно небезпечно перехоплювало ввід. Значення смуг можна редагувати й зберігати, але оверлей не запускається.", "Live HSL overlay is temporarily disabled because its fullscreen window could intercept input. Band values can still be edited and saved, but no overlay window is started." } }
         };
 
         private static string _language = "uk";

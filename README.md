@@ -43,6 +43,11 @@ HSL-налаштування зберігаються у `%LOCALAPPDATA%\WinGamm
 Після оновлення зі збірки до safety hotfix старий прапорець увімкнення
 ігнорується: оверлей потрібно явно ввімкнути знову у вкладці HSL.
 
+**Важливо:** живий fullscreen HSL Overlay наразі примусово вимкнений у коді.
+Попередні HWND-реалізації могли перехопити весь ввід. Редагування та збереження
+8 смуг лишається доступним, але ні editor, ні loader не створюють
+оверлей-вікно, доки безпечний renderer не буде перевірений на Windows.
+
 Аварійне завершення оверлею з клавіатури:
 
 ```cmd
@@ -118,9 +123,10 @@ WinGamma does not collect telemetry or send any data.
 - The click-through overlay is excluded from capture with
   `WDA_EXCLUDEFROMCAPTURE` to prevent feedback. `DXGI_ERROR_ACCESS_LOST` after
   UAC, lock/unlock or a mode switch triggers full capture-session recreation.
-- USER32 input is disabled on the overlay HWND before rendering. WinGamma also
-  verifies with `WindowFromPoint` that hit-testing resolves to an underlying
-  window; if this safety check fails, the overlay closes without starting D3D.
+- Live creation of the fullscreen overlay HWND is currently blocked in both the
+  editor and loader. Disabling an HWND prevents it from receiving input but
+  does not reliably forward that input to unrelated underlying applications,
+  so the previous safety check was removed from the supported runtime path.
 - Secure desktop and protected/DRM content can appear black. Exclusive
   full-screen applications and software that reserves Desktop Duplication may
   prevent the overlay from working.
