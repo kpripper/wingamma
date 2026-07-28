@@ -54,7 +54,10 @@ namespace WinGamma
             { "HslRuntimeUnavailable", new[] { "Спочатку запустіть 10-секундний тест. Спробуйте клікати інші програми. Тест сам закриється; аварійна клавіша — Ctrl+Alt+F12.", "Run the 10-second test first and try clicking other applications. It closes automatically; emergency key: Ctrl+Alt+F12." } },
             { "HslSafetyTest", new[] { "Тест оверлею — 10 с", "Test overlay — 10 s" } },
             { "HslSafetyTesting", new[] { "Тест виконується…", "Testing…" } },
-            { "HslSafetyQuestion", new[] { "Під час тесту кольори змінювалися, а кліки проходили в інші програми без системного звуку помилки?", "During the test, did colors change and clicks reach other applications without an error sound?" } }
+            { "HslSafetyQuestion", new[] { "Під час тесту кольори змінювалися, а кліки проходили в інші програми без системного звуку помилки?", "During the test, did colors change and clicks reach other applications without an error sound?" } },
+            { "HslSaveStartup", new[] { "Зберегти + автозапуск", "Save + autostart" } },
+            { "HslStartupSaved", new[] { "HSL-налаштування збережено. Loader автоматично застосовуватиме їх після входу, сну та зміни режиму дисплея.", "HSL settings saved. The loader will apply them automatically after sign-in, sleep, and display mode changes." } },
+            { "HslEnableBeforeSave", new[] { "Спочатку увімкніть чекбокс HSL Overlay, а потім збережіть автозапуск.", "Enable the HSL Overlay checkbox before saving autostart." } }
         };
 
         private static string _language = "uk";

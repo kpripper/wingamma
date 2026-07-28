@@ -248,6 +248,7 @@ namespace WinGamma
             _hslControl = new HslOverlayControl();
             _hslControl.SettingsChanged += HslSettingsChanged;
             _hslControl.TestRequested += HslTestRequested;
+            _hslControl.SaveStartupRequested += HslSaveStartupRequested;
             _hslTab.Controls.Add(_hslControl);
         }
 
@@ -697,6 +698,36 @@ namespace WinGamma
             catch (Exception exception)
             {
                 _hslControl.SetTestRunning(false);
+                ShowError(exception);
+            }
+        }
+
+        private void HslSaveStartupRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!_hslControl.ReadSettings().Enabled)
+                    throw new InvalidOperationException(
+                        Localizer.Get("HslEnableBeforeSave"));
+                HslSettingsChanged(sender, e);
+                bool wasEnabled = _autostartCheck.Checked;
+                if (!wasEnabled)
+                {
+                    _autostartCheck.Checked = true;
+                }
+                else
+                {
+                    ProcessStartInfo start = new ProcessStartInfo();
+                    start.FileName = Application.ExecutablePath;
+                    start.Arguments = "--loader";
+                    start.UseShellExecute = true;
+                    Process.Start(start);
+                }
+                _status.ForeColor = Color.FromArgb(30, 120, 65);
+                _status.Text = Localizer.Get("HslStartupSaved");
+            }
+            catch (Exception exception)
+            {
                 ShowError(exception);
             }
         }

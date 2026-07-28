@@ -20,6 +20,7 @@ namespace WinGamma
         private readonly CheckBox _enabled;
         private readonly Button _reset;
         private readonly Button _test;
+        private readonly Button _saveStartup;
         private readonly Label _hint;
         private readonly Label _hueHeader;
         private readonly Label _satHeader;
@@ -27,12 +28,16 @@ namespace WinGamma
         private readonly TrackBar[] _hue = new TrackBar[8];
         private readonly TrackBar[] _sat = new TrackBar[8];
         private readonly TrackBar[] _lum = new TrackBar[8];
+        private readonly Label[] _hueValue = new Label[8];
+        private readonly Label[] _satValue = new Label[8];
+        private readonly Label[] _lumValue = new Label[8];
         private HslBandSettings _settings;
         private bool _loading;
         private bool _runtimeUnavailable;
 
         public event EventHandler SettingsChanged;
         public event EventHandler TestRequested;
+        public event EventHandler SaveStartupRequested;
 
         public HslOverlayControl()
         {
@@ -50,6 +55,9 @@ namespace WinGamma
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.4f));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             Controls.Add(layout);
 
             FlowLayoutPanel actions = new FlowLayoutPanel();
@@ -69,9 +77,18 @@ namespace WinGamma
                 if (handler != null)
                     handler(this, EventArgs.Empty);
             };
+            _saveStartup = new Button();
+            _saveStartup.AutoSize = true;
+            _saveStartup.Click += delegate
+            {
+                EventHandler handler = SaveStartupRequested;
+                if (handler != null)
+                    handler(this, EventArgs.Empty);
+            };
             actions.Controls.Add(_enabled);
             actions.Controls.Add(_test);
             actions.Controls.Add(_reset);
+            actions.Controls.Add(_saveStartup);
             layout.Controls.Add(actions, 0, 0);
             layout.SetColumnSpan(actions, 4);
 
@@ -93,7 +110,7 @@ namespace WinGamma
 
             for (int i = 0; i < 8; i++)
             {
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
                 FlowLayoutPanel band = new FlowLayoutPanel();
                 band.Dock = DockStyle.Fill;
                 band.FlowDirection = FlowDirection.LeftToRight;
@@ -113,9 +130,12 @@ namespace WinGamma
                 _hue[i] = NewTrack(-180, 180, 0, 30);
                 _sat[i] = NewTrack(0, 200, 100, 25);
                 _lum[i] = NewTrack(-100, 100, 0, 20);
-                layout.Controls.Add(_hue[i], 1, i + 3);
-                layout.Controls.Add(_sat[i], 2, i + 3);
-                layout.Controls.Add(_lum[i], 3, i + 3);
+                layout.Controls.Add(NewSliderCell(_hue[i],
+                    out _hueValue[i], "°"), 1, i + 3);
+                layout.Controls.Add(NewSliderCell(_sat[i],
+                    out _satValue[i], "%"), 2, i + 3);
+                layout.Controls.Add(NewSliderCell(_lum[i],
+                    out _lumValue[i], "%"), 3, i + 3);
             }
             ApplyLanguage();
         }
@@ -125,6 +145,7 @@ namespace WinGamma
             _enabled.Text = Localizer.Get("HslEnable");
             _reset.Text = Localizer.Get("HslReset");
             _test.Text = Localizer.Get("HslSafetyTest");
+            _saveStartup.Text = Localizer.Get("HslSaveStartup");
             _hint.Text = _runtimeUnavailable
                 ? Localizer.Get("HslRuntimeUnavailable")
                 : Localizer.Get("HslHint");
@@ -150,6 +171,7 @@ namespace WinGamma
                     _lum[i].Value = Clamp((int)Math.Round(
                         _settings.Bands[i].LuminanceShift * 100), -100, 100);
                 }
+                UpdateValueLabels();
             }
             finally
             {
@@ -222,7 +244,81 @@ namespace WinGamma
 
         private void ControlChanged(object sender, EventArgs e)
         {
+            UpdateValueLabels();
             RaiseChanged();
+        }
+
+        private Control NewSliderCell(TrackBar track, out Label valueLabel,
+            string suffix)
+        {
+            TableLayoutPanel cell = new TableLayoutPanel();
+            cell.Dock = DockStyle.Fill;
+            cell.Margin = new Padding(1);
+            cell.ColumnCount = 1;
+            cell.RowCount = 2;
+            cell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            cell.RowStyles.Add(new RowStyle(SizeType.Absolute, 27));
+            cell.Controls.Add(track, 0, 0);
+
+            FlowLayoutPanel precision = new FlowLayoutPanel();
+            precision.Dock = DockStyle.Fill;
+            precision.FlowDirection = FlowDirection.LeftToRight;
+            precision.WrapContents = false;
+            precision.AutoSize = false;
+            precision.Padding = new Padding(2, 0, 0, 0);
+
+            Button minus = PrecisionButton("−");
+            Label label = new Label();
+            label.AutoSize = false;
+            label.Width = 54;
+            label.Height = 24;
+            label.TextAlign = ContentAlignment.MiddleCenter;
+            label.Tag = suffix;
+            Button plus = PrecisionButton("+");
+            minus.Click += delegate { AdjustTrack(track, -1); };
+            plus.Click += delegate { AdjustTrack(track, 1); };
+            precision.Controls.Add(minus);
+            precision.Controls.Add(label);
+            precision.Controls.Add(plus);
+            cell.Controls.Add(precision, 0, 1);
+            valueLabel = label;
+            return cell;
+        }
+
+        private static Button PrecisionButton(string text)
+        {
+            Button button = new Button();
+            button.Text = text;
+            button.Width = 30;
+            button.Height = 24;
+            button.Margin = new Padding(1);
+            button.TabStop = false;
+            return button;
+        }
+
+        private void AdjustTrack(TrackBar track, int delta)
+        {
+            int value = Clamp(track.Value + delta,
+                track.Minimum, track.Maximum);
+            if (value == track.Value)
+                return;
+            track.Value = value;
+            ControlChanged(track, EventArgs.Empty);
+        }
+
+        private void UpdateValueLabels()
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                _hueValue[i].Text = Signed(_hue[i].Value) + "°";
+                _satValue[i].Text = _sat[i].Value + "%";
+                _lumValue[i].Text = Signed(_lum[i].Value) + "%";
+            }
+        }
+
+        private static string Signed(int value)
+        {
+            return value > 0 ? "+" + value : value.ToString();
         }
 
         private void RaiseChanged()
