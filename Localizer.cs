@@ -41,7 +41,16 @@ namespace WinGamma
             { "TrayExit", new[] { "Вийти з loader", "Exit loader" } },
             { "LoaderTooltip", new[] { "WinGamma loader", "WinGamma loader" } },
             { "InvalidTarget", new[] { "Цільова гамма має бути від 1.0 до 3.0.", "Target gamma must be between 1.0 and 3.0." } },
-            { "ProfileBase", new[] { "Базовий профіль: {0}", "Base profile: {0}" } }
+            { "ProfileBase", new[] { "Базовий профіль: {0}", "Base profile: {0}" } },
+            { "CalibrationTab", new[] { "Калібрування ICC", "ICC calibration" } },
+            { "HslTab", new[] { "HSL Overlay", "HSL Overlay" } },
+            { "HslEnable", new[] { "Увімкнути HSL-оверлей для вибраного монітора", "Enable HSL overlay for the selected monitor" } },
+            { "HslReset", new[] { "Скинути смуги", "Reset bands" } },
+            { "HslHint", new[] { "Окремий GPU-шар поверх ICC/vcgt. Корекція застосовується до кожного пікселя; в ICM вона не експортується.", "A separate GPU layer over ICC/vcgt. Per-pixel adjustments are not exported to ICM." } },
+            { "HslHue", new[] { "Відтінок", "Hue" } },
+            { "HslSat", new[] { "Насиченість", "Saturation" } },
+            { "HslLum", new[] { "Яскравість", "Luminance" } },
+            { "HslHdrBlocked", new[] { "HSL Overlay заблоковано, поки активний HDR.", "HSL Overlay is blocked while HDR is active." } }
         };
 
         private static string _language = "uk";

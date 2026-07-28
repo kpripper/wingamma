@@ -51,10 +51,12 @@ namespace WinGamma
         public string FriendlyName { get; set; }
         public string InstalledProfilePath { get; set; }
         public GammaSettings Values { get; set; }
+        public HslBandSettings HslOverlay { get; set; }
 
         public MonitorSettingsRecord()
         {
             Values = new GammaSettings();
+            HslOverlay = HslBandSettings.CreateDefault();
         }
     }
 

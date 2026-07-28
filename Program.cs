@@ -37,6 +37,11 @@ namespace WinGamma
                 };
 
                 if (args.Length >= 1
+                    && String.Equals(args[0], "--diagnose-layer-order",
+                        StringComparison.OrdinalIgnoreCase))
+                    return LayerOrderDiagnostic.Run();
+
+                if (args.Length >= 1
                     && String.Equals(args[0], "--loader",
                         StringComparison.OrdinalIgnoreCase))
                     return RunLoader();

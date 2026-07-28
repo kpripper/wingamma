@@ -16,6 +16,7 @@ namespace WinGamma
         internal const int WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER = 1;
         internal const int CPT_ICC = 0;
         internal const int CPST_NONE = 0;
+        internal const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
 
         internal delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc,
             ref RECT bounds, IntPtr data);
@@ -29,6 +30,11 @@ namespace WinGamma
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool GetMonitorInfo(IntPtr monitor,
             ref MONITORINFOEX info);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetWindowDisplayAffinity(IntPtr window,
+            uint affinity);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]

@@ -2,27 +2,21 @@
 setlocal
 cd /d "%~dp0"
 
-set "CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-if not exist "%CSC%" set "CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe"
-
-if not exist "%CSC%" (
-  echo ERROR: .NET Framework C# compiler was not found.
-  echo Enable or install .NET Framework 4.8, then run this file again.
+where dotnet >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: .NET 8 SDK was not found.
+  echo Install the lightweight SDK from https://dotnet.microsoft.com/download/dotnet/8.0
+  echo Visual Studio is not required.
   exit /b 1
 )
 
-if not exist "dist" mkdir "dist"
+if exist "dist" rmdir /s /q "dist"
 
-"%CSC%" /nologo /target:winexe /platform:anycpu /optimize+ /warn:4 ^
-  /out:"dist\WinGamma.exe" /win32manifest:"app.manifest" ^
-  /reference:System.dll /reference:System.Core.dll ^
-  /reference:System.Drawing.dll /reference:System.Windows.Forms.dll ^
-  /reference:System.Xml.dll ^
-  GammaMath.cs IccProfile.cs LoaderContext.cs Localizer.cs MainForm.cs ^
-  Models.cs MonitorService.cs NativeMethods.cs ProfileService.cs Program.cs ^
-  SelfTests.cs SettingsStore.cs TestPatternControl.cs
-
+dotnet restore "WinGamma.csproj"
 if errorlevel 1 exit /b %errorlevel%
-copy /y "app.config" "dist\WinGamma.exe.config" >nul
+
+dotnet publish "WinGamma.csproj" -c Release -r win-x64 --self-contained false -o "dist"
+if errorlevel 1 exit /b %errorlevel%
+
 echo Built: %CD%\dist\WinGamma.exe
 endlocal

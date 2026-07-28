@@ -16,12 +16,14 @@ namespace WinGamma
             public ProfileContext Context;
             public GammaSettings Settings;
             public GammaRamp RestoreRamp;
+            public HslBandSettings HslSettings;
         }
 
         private readonly AppSettings _appSettings;
         private readonly Dictionary<string, MonitorSession> _sessions;
         private readonly Dictionary<string, Control> _localized;
         private readonly Timer _previewTimer;
+        private readonly HslOverlayManager _hslManager;
         private List<DisplayMonitor> _monitors;
         private bool _loading;
 
@@ -46,6 +48,10 @@ namespace WinGamma
         private TestPatternControl _pattern;
         private Button _installButton;
         private TableLayoutPanel _slidersPanel;
+        private TabControl _tabs;
+        private TabPage _calibrationTab;
+        private TabPage _hslTab;
+        private HslOverlayControl _hslControl;
 
         public MainForm()
         {
@@ -56,6 +62,7 @@ namespace WinGamma
             _localized = new Dictionary<string, Control>(
                 StringComparer.OrdinalIgnoreCase);
             _previewTimer = new Timer();
+            _hslManager = new HslOverlayManager();
             _previewTimer.Interval = 90;
             _previewTimer.Tick += PreviewTimerTick;
 
@@ -74,6 +81,16 @@ namespace WinGamma
             Font = new Font("Segoe UI", 9.0f);
             BackColor = Color.FromArgb(245, 246, 248);
 
+            _tabs = new TabControl();
+            _tabs.Dock = DockStyle.Fill;
+            _calibrationTab = new TabPage();
+            _calibrationTab.BackColor = BackColor;
+            _hslTab = new TabPage();
+            _hslTab.BackColor = BackColor;
+            _tabs.TabPages.Add(_calibrationTab);
+            _tabs.TabPages.Add(_hslTab);
+            Controls.Add(_tabs);
+
             TableLayoutPanel root = new TableLayoutPanel();
             root.Dock = DockStyle.Fill;
             root.Padding = new Padding(14);
@@ -81,7 +98,7 @@ namespace WinGamma
             root.RowCount = 1;
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 440));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            Controls.Add(root);
+            _calibrationTab.Controls.Add(root);
 
             Panel left = new Panel();
             left.Dock = DockStyle.Fill;
@@ -225,6 +242,10 @@ namespace WinGamma
             _pattern = new TestPatternControl();
             _pattern.Dock = DockStyle.Fill;
             calibrationLayout.Controls.Add(_pattern, 0, 1);
+
+            _hslControl = new HslOverlayControl();
+            _hslControl.SettingsChanged += HslSettingsChanged;
+            _hslTab.Controls.Add(_hslControl);
         }
 
         private void PopulateMonitors()
@@ -254,10 +275,20 @@ namespace WinGamma
                 session.Settings = session.Context.SavedSettings.Clone();
                 session.RestoreRamp = MonitorService.GetGammaRamp(monitor)
                     ?? session.Context.BaseRamp.Clone();
+                MonitorSettingsRecord record = FindMonitorRecord(
+                    monitor.StableId);
+                session.HslSettings = record == null
+                    ? HslBandSettings.CreateDefault()
+                    : (record.HslOverlay ?? HslBandSettings.CreateDefault())
+                        .Clone();
                 _sessions[monitor.StableId] = session;
             }
             LoadSettingsIntoControls(session.Settings);
+            _hslControl.LoadSettings(session.HslSettings);
             UpdateMonitorState(session);
+            if (!session.Monitor.IsHdr && session.HslSettings.Enabled)
+                _hslManager.StartOrUpdate(session.Monitor,
+                    session.HslSettings);
         }
 
         private void UpdateMonitorState(MonitorSession session)
@@ -266,6 +297,9 @@ namespace WinGamma
             _slidersPanel.Enabled = editable;
             _linkCheck.Enabled = editable;
             _installButton.Enabled = editable;
+            _hslControl.SetHdrBlocked(!editable);
+            if (!editable)
+                _hslManager.Stop(session.Monitor.StableId);
             if (session.Monitor.IsHdr)
             {
                 _status.ForeColor = Color.FromArgb(170, 70, 30);
@@ -541,16 +575,8 @@ namespace WinGamma
 
         private void SaveMonitorRecord(MonitorSession session, string path)
         {
-            MonitorSettingsRecord record = null;
-            for (int i = 0; i < _appSettings.Monitors.Count; i++)
-            {
-                if (String.Equals(_appSettings.Monitors[i].MonitorId,
-                    session.Monitor.StableId, StringComparison.OrdinalIgnoreCase))
-                {
-                    record = _appSettings.Monitors[i];
-                    break;
-                }
-            }
+            MonitorSettingsRecord record =
+                FindMonitorRecord(session.Monitor.StableId);
             if (record == null)
             {
                 record = new MonitorSettingsRecord();
@@ -560,7 +586,49 @@ namespace WinGamma
             record.FriendlyName = session.Monitor.FriendlyName;
             record.InstalledProfilePath = path;
             record.Values = session.Settings.Clone();
+            record.HslOverlay = (session.HslSettings
+                ?? HslBandSettings.CreateDefault()).Clone();
             SettingsStore.Save(_appSettings);
+        }
+
+        private MonitorSettingsRecord FindMonitorRecord(string monitorId)
+        {
+            for (int i = 0; i < _appSettings.Monitors.Count; i++)
+            {
+                if (String.Equals(_appSettings.Monitors[i].MonitorId,
+                    monitorId, StringComparison.OrdinalIgnoreCase))
+                    return _appSettings.Monitors[i];
+            }
+            return null;
+        }
+
+        private void HslSettingsChanged(object sender, EventArgs e)
+        {
+            if (_loading)
+                return;
+            MonitorSession session = CurrentSession;
+            if (session == null)
+                return;
+            session.HslSettings = _hslControl.ReadSettings();
+
+            MonitorSettingsRecord record =
+                FindMonitorRecord(session.Monitor.StableId);
+            if (record == null)
+            {
+                record = new MonitorSettingsRecord();
+                record.MonitorId = session.Monitor.StableId;
+                record.FriendlyName = session.Monitor.FriendlyName;
+                record.Values = session.Settings.Clone();
+                _appSettings.Monitors.Add(record);
+            }
+            record.HslOverlay = session.HslSettings.Clone();
+            SettingsStore.Save(_appSettings);
+
+            if (session.Monitor.IsHdr || !session.HslSettings.Enabled)
+                _hslManager.Stop(session.Monitor.StableId);
+            else
+                _hslManager.StartOrUpdate(session.Monitor,
+                    session.HslSettings);
         }
 
         private void AutostartChanged(object sender, EventArgs e)
@@ -605,12 +673,16 @@ namespace WinGamma
             Text = Localizer.Get("AppTitle");
             foreach (KeyValuePair<string, Control> item in _localized)
                 item.Value.Text = Localizer.Get(item.Key);
+            _calibrationTab.Text = Localizer.Get("CalibrationTab");
+            _hslTab.Text = Localizer.Get("HslTab");
+            _hslControl.ApplyLanguage();
             _pattern.Invalidate();
         }
 
         private void MainFormClosing(object sender, FormClosingEventArgs e)
         {
             _previewTimer.Stop();
+            _hslManager.Dispose();
             foreach (MonitorSession session in _sessions.Values)
             {
                 try

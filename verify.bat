@@ -17,4 +17,8 @@ if not "%TEST_RESULT%"=="0" (
 )
 
 echo All platform-independent self-tests passed.
+echo.
+echo Optional hardware diagnostic (temporarily changes and restores the LUT):
+echo   dist\WinGamma.exe --diagnose-layer-order
+echo It records whether this monitor driver exposes vcgt changes to DDA.
 endlocal

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -12,6 +13,7 @@ namespace WinGamma
     {
         private readonly NotifyIcon _notifyIcon;
         private readonly System.Windows.Forms.Timer _timer;
+        private readonly HslOverlayManager _hslManager;
         private bool _disposed;
 
         public LoaderContext()
@@ -35,6 +37,7 @@ namespace WinGamma
             _notifyIcon.DoubleClick += OpenEditor;
 
             _timer = new System.Windows.Forms.Timer();
+            _hslManager = new HslOverlayManager();
             _timer.Interval = 1200;
             _timer.Tick += ReloadTimerTick;
 
@@ -55,6 +58,7 @@ namespace WinGamma
             _timer.Stop();
             if (IsEditorActive())
             {
+                _hslManager.StopAll();
                 _timer.Interval = 2000;
                 _timer.Start();
                 return;
@@ -63,22 +67,50 @@ namespace WinGamma
             _timer.Interval = 1200;
             try
             {
+                AppSettings settings = SettingsStore.Load();
+                HashSet<string> activeHsl = new HashSet<string>(
+                    StringComparer.OrdinalIgnoreCase);
                 foreach (DisplayMonitor monitor in MonitorService.EnumerateMonitors())
                 {
                     if (monitor.IsHdr)
                         continue;
                     string path = MonitorService.GetCurrentProfilePath(monitor);
-                    if (String.IsNullOrWhiteSpace(path) || !File.Exists(path))
-                        continue;
-                    GammaRamp ramp = IccProfile.ReadVcgt(File.ReadAllBytes(path));
-                    if (ramp != null)
-                        MonitorService.SetGammaRamp(monitor, ramp, false);
+                    if (!String.IsNullOrWhiteSpace(path) && File.Exists(path))
+                    {
+                        GammaRamp ramp = IccProfile.ReadVcgt(
+                            File.ReadAllBytes(path));
+                        if (ramp != null)
+                            MonitorService.SetGammaRamp(monitor, ramp, false);
+                    }
+
+                    MonitorSettingsRecord record =
+                        FindRecord(settings, monitor.StableId);
+                    if (record != null && record.HslOverlay != null
+                        && record.HslOverlay.Enabled)
+                    {
+                        activeHsl.Add(monitor.StableId);
+                        _hslManager.StartOrUpdate(monitor,
+                            record.HslOverlay);
+                    }
                 }
+                _hslManager.StopExcept(activeHsl);
             }
             catch (Exception exception)
             {
                 SettingsStore.Log("Loader reload failed: " + exception);
             }
+        }
+
+        private static MonitorSettingsRecord FindRecord(AppSettings settings,
+            string monitorId)
+        {
+            for (int i = 0; i < settings.Monitors.Count; i++)
+            {
+                if (String.Equals(settings.Monitors[i].MonitorId, monitorId,
+                    StringComparison.OrdinalIgnoreCase))
+                    return settings.Monitors[i];
+            }
+            return null;
         }
 
         private static bool IsEditorActive()
@@ -170,6 +202,7 @@ namespace WinGamma
                 SystemEvents.PowerModeChanged -= PowerModeChanged;
                 SystemEvents.SessionSwitch -= SessionSwitch;
                 _timer.Dispose();
+                _hslManager.Dispose();
                 _notifyIcon.Visible = false;
                 _notifyIcon.Dispose();
             }

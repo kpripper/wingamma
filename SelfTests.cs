@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Xml.Serialization;
 
 namespace WinGamma
 {
@@ -23,6 +24,11 @@ namespace WinGamma
                 Test(report, "WinGamma metadata round trip",
                     TestMetadataRoundTrip);
                 Test(report, "Invalid ICC rejection", TestInvalidProfile);
+                Test(report, "HSL band normalization", TestHslBandNormalization);
+                Test(report, "HSL neutral adjustment", TestHslNeutral);
+                Test(report, "HSV RGB round trip", TestHsvRoundTrip);
+                Test(report, "HSL settings XML round trip",
+                    TestHslSettingsRoundTrip);
                 report.AppendLine("PASS: " + _passed + " tests.");
                 WriteReport(report.ToString());
                 return 0;
@@ -140,6 +146,94 @@ namespace WinGamma
             byte[] profile = IccProfile.CreateGenericSrgbProfile();
             profile[36] = (byte)'x';
             Assert(!IccProfile.IsValid(profile), "bad signature rejected");
+        }
+
+        private static void TestHslBandNormalization()
+        {
+            HslBandSettings settings = HslBandSettings.CreateDefault();
+            for (int hue = 0; hue < 360; hue++)
+            {
+                float[] weights = HslBandMath.NormalizedWeights(
+                    hue, settings);
+                double sum = 0.0;
+                for (int i = 0; i < weights.Length; i++)
+                    sum += weights[i];
+                Assert(Math.Abs(sum - 1.0) < 0.0001,
+                    "normalized weights at hue " + hue);
+            }
+            Assert(Math.Abs(HslBandMath.AngleDiff(359.0f, 1.0f) + 2.0f)
+                < 0.0001, "hue wrap");
+        }
+
+        private static void TestHslNeutral()
+        {
+            HslBandSettings settings = HslBandSettings.CreateDefault();
+            for (int hue = 0; hue < 360; hue += 7)
+            {
+                HslBandAdjustment adjustment =
+                    HslBandMath.Evaluate(hue, settings);
+                Assert(Math.Abs(adjustment.HueShiftDeg) < 0.0001,
+                    "neutral hue shift");
+                Assert(Math.Abs(adjustment.SaturationScale - 1.0f) < 0.0001,
+                    "neutral saturation scale");
+                Assert(Math.Abs(adjustment.LuminanceShift) < 0.0001,
+                    "neutral value shift");
+            }
+        }
+
+        private static void TestHsvRoundTrip()
+        {
+            float[,] samples = {
+                { 0.0f, 0.0f, 0.0f },
+                { 1.0f, 1.0f, 1.0f },
+                { 1.0f, 0.0f, 0.0f },
+                { 0.12f, 0.53f, 0.91f },
+                { 0.84f, 0.27f, 0.44f }
+            };
+            for (int i = 0; i < samples.GetLength(0); i++)
+            {
+                float h;
+                float s;
+                float v;
+                HslBandMath.RgbToHsv(samples[i, 0], samples[i, 1],
+                    samples[i, 2], out h, out s, out v);
+                float r;
+                float g;
+                float b;
+                HslBandMath.HsvToRgb(h, s, v, out r, out g, out b);
+                Assert(Math.Abs(r - samples[i, 0]) < 0.0001, "round-trip R");
+                Assert(Math.Abs(g - samples[i, 1]) < 0.0001, "round-trip G");
+                Assert(Math.Abs(b - samples[i, 2]) < 0.0001, "round-trip B");
+            }
+        }
+
+        private static void TestHslSettingsRoundTrip()
+        {
+            AppSettings settings = new AppSettings();
+            MonitorSettingsRecord record = new MonitorSettingsRecord();
+            record.MonitorId = "test-monitor";
+            record.HslOverlay.Enabled = true;
+            HslBand band = record.HslOverlay.Bands[3];
+            band.HueShiftDeg = -17.0f;
+            band.SaturationScale = 1.42f;
+            band.LuminanceShift = 0.08f;
+            record.HslOverlay.Bands[3] = band;
+            settings.Monitors.Add(record);
+
+            XmlSerializer serializer = new XmlSerializer(typeof(AppSettings));
+            using (MemoryStream stream = new MemoryStream())
+            {
+                serializer.Serialize(stream, settings);
+                stream.Position = 0;
+                AppSettings read =
+                    (AppSettings)serializer.Deserialize(stream);
+                Assert(read.Monitors.Count == 1, "HSL monitor record");
+                Assert(read.Monitors[0].HslOverlay.Enabled,
+                    "HSL enabled flag");
+                Assert(Math.Abs(read.Monitors[0].HslOverlay.Bands[3]
+                    .SaturationScale - 1.42f) < 0.0001,
+                    "HSL band value");
+            }
         }
 
         private static void Test(StringBuilder report, string name, Action action)
