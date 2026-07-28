@@ -85,7 +85,8 @@ namespace WinGamma
 
                     MonitorSettingsRecord record =
                         FindRecord(settings, monitor.StableId);
-                    if (record != null && record.HslOverlay != null
+                    if (settings.HslOverlaySafetyVersion >= 2
+                        && record != null && record.HslOverlay != null
                         && record.HslOverlay.Enabled)
                     {
                         activeHsl.Add(monitor.StableId);

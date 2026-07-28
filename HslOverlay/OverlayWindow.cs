@@ -11,6 +11,7 @@ namespace WinGamma
         private const int WS_EX_TOPMOST = 0x00000008;
         private const int WS_EX_NOACTIVATE = 0x08000000;
         private const int WS_EX_TOOLWINDOW = 0x00000080;
+        private const int WS_DISABLED = 0x08000000;
         private const int WM_NCHITTEST = 0x0084;
         private const int HTTRANSPARENT = -1;
 
@@ -54,6 +55,10 @@ namespace WinGamma
                 // reliably present into layered HWNDs.
                 value.ExStyle |= WS_EX_TRANSPARENT | WS_EX_TOPMOST
                     | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+                // A disabled top-level window is excluded from mouse and
+                // keyboard input by USER32, independently of WinForms hit-test
+                // behavior and independently of the target process/thread.
+                value.Style |= WS_DISABLED;
                 return value;
             }
         }
@@ -94,6 +99,19 @@ namespace WinGamma
         {
             try
             {
+                NativeMethods.EnableWindow(Handle, false);
+                if (NativeMethods.IsWindowEnabled(Handle))
+                    throw new InvalidOperationException(
+                        "The HSL overlay could not be made input-transparent.");
+
+                POINTL center = new POINTL();
+                center.X = Bounds.Left + Bounds.Width / 2;
+                center.Y = Bounds.Top + Bounds.Height / 2;
+                IntPtr hitWindow = NativeMethods.WindowFromPoint(center);
+                if (hitWindow == Handle || hitWindow == IntPtr.Zero)
+                    throw new InvalidOperationException(
+                        "The HSL overlay failed its click-through safety test.");
+
                 if (!NativeMethods.SetWindowDisplayAffinity(Handle,
                     NativeMethods.WDA_EXCLUDEFROMCAPTURE))
                 {

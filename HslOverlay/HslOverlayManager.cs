@@ -51,6 +51,9 @@ namespace WinGamma
                 {
                     try
                     {
+                        NativeMethods.SetThreadDpiAwarenessContext(
+                            NativeMethods
+                                .DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
                         OverlayWindow window =
                             new OverlayWindow(monitor, settings);
                         lock (_sync)

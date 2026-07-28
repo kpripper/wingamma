@@ -281,6 +281,10 @@ namespace WinGamma
                     ? HslBandSettings.CreateDefault()
                     : (record.HslOverlay ?? HslBandSettings.CreateDefault())
                         .Clone();
+                // Never auto-reactivate settings written by the unsafe
+                // fullscreen-window implementation.
+                if (_appSettings.HslOverlaySafetyVersion < 2)
+                    session.HslSettings.Enabled = false;
                 _sessions[monitor.StableId] = session;
             }
             LoadSettingsIntoControls(session.Settings);
@@ -610,6 +614,7 @@ namespace WinGamma
             if (session == null)
                 return;
             session.HslSettings = _hslControl.ReadSettings();
+            _appSettings.HslOverlaySafetyVersion = 2;
 
             MonitorSettingsRecord record =
                 FindMonitorRecord(session.Monitor.StableId);

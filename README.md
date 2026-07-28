@@ -40,6 +40,15 @@ framework-dependent збірки потрібен .NET 8 Desktop Runtime. За �
 
 HSL-налаштування зберігаються у `%LOCALAPPDATA%\WinGamma\settings.xml`, але не
 записуються в ICC/ICM: `vcgt` не вміє представляти корекцію за смугами hue.
+Після оновлення зі збірки до safety hotfix старий прапорець увімкнення
+ігнорується: оверлей потрібно явно ввімкнути знову у вкладці HSL.
+
+Аварійне завершення оверлею з клавіатури:
+
+```cmd
+Win+R
+taskkill /F /IM WinGamma.exe
+```
 
 Поки зміни не встановлені, закриття редактора відновлює LUT, який був активним
 на момент запуску. Після успішного встановлення відновлюється вже новий профіль.
@@ -109,6 +118,9 @@ WinGamma does not collect telemetry or send any data.
 - The click-through overlay is excluded from capture with
   `WDA_EXCLUDEFROMCAPTURE` to prevent feedback. `DXGI_ERROR_ACCESS_LOST` after
   UAC, lock/unlock or a mode switch triggers full capture-session recreation.
+- USER32 input is disabled on the overlay HWND before rendering. WinGamma also
+  verifies with `WindowFromPoint` that hit-testing resolves to an underlying
+  window; if this safety check fails, the overlay closes without starting D3D.
 - Secure desktop and protected/DRM content can appear black. Exclusive
   full-screen applications and software that reserves Desktop Duplication may
   prevent the overlay from working.

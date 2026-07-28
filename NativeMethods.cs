@@ -17,6 +17,8 @@ namespace WinGamma
         internal const int CPT_ICC = 0;
         internal const int CPST_NONE = 0;
         internal const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+        internal static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 =
+            new IntPtr(-4);
 
         internal delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc,
             ref RECT bounds, IntPtr data);
@@ -35,6 +37,22 @@ namespace WinGamma
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool SetWindowDisplayAffinity(IntPtr window,
             uint affinity);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr SetThreadDpiAwarenessContext(
+            IntPtr dpiContext);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool EnableWindow(IntPtr window,
+            [MarshalAs(UnmanagedType.Bool)] bool enable);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool IsWindowEnabled(IntPtr window);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr WindowFromPoint(POINTL point);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]

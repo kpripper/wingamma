@@ -41,15 +41,13 @@ namespace WinGamma
         private ID3D11PixelShader _pixelShader;
         private ID3D11SamplerState _sampler;
         private ID3D11Buffer _constantBuffer;
-        private readonly int _width;
-        private readonly int _height;
+        private int _width;
+        private int _height;
         private bool _hasFrame;
         private bool _disposed;
 
         public OverlayRenderer(IntPtr window, DisplayMonitor monitor)
         {
-            _width = monitor.Bounds.Width;
-            _height = monitor.Bounds.Height;
             try
             {
                 _capture = new DesktopCapture(monitor);
@@ -62,8 +60,10 @@ namespace WinGamma
                 {
                     SwapChainDescription1 description =
                         new SwapChainDescription1();
-                    description.Width = (uint)_width;
-                    description.Height = (uint)_height;
+                    // Let DXGI use the actual physical HWND client size. This
+                    // avoids mixing WinForms logical units with device pixels.
+                    description.Width = 0;
+                    description.Height = 0;
                     description.Format = Format.B8G8R8A8_UNorm;
                     description.SampleDescription = SampleDescription.Default;
                     description.BufferUsage = Usage.RenderTargetOutput;
@@ -82,8 +82,14 @@ namespace WinGamma
 
                 using (ID3D11Texture2D backBuffer =
                     _swapChain.GetBuffer<ID3D11Texture2D>(0))
+                {
+                    Texture2DDescription backBufferDescription =
+                        backBuffer.Description;
+                    _width = (int)backBufferDescription.Width;
+                    _height = (int)backBufferDescription.Height;
                     _renderTarget =
                         _capture.Device.CreateRenderTargetView(backBuffer);
+                }
 
                 Texture2DDescription frameDescription =
                     _capture.GetDesktopTextureDescription();

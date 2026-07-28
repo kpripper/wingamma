@@ -26,6 +26,7 @@ namespace WinGamma
                     return SelfTests.Run();
                 }
 
+                Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.ThreadException += delegate(object sender,
