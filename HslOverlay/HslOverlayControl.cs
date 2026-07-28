@@ -110,7 +110,7 @@ namespace WinGamma
 
             for (int i = 0; i < 8; i++)
             {
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
+                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
                 FlowLayoutPanel band = new FlowLayoutPanel();
                 band.Dock = DockStyle.Fill;
                 band.FlowDirection = FlowDirection.LeftToRight;
@@ -253,33 +253,39 @@ namespace WinGamma
         {
             TableLayoutPanel cell = new TableLayoutPanel();
             cell.Dock = DockStyle.Fill;
+            cell.AutoSize = true;
             cell.Margin = new Padding(1);
             cell.ColumnCount = 1;
             cell.RowCount = 2;
-            cell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            cell.RowStyles.Add(new RowStyle(SizeType.Absolute, 27));
+            cell.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            cell.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             cell.Controls.Add(track, 0, 0);
 
-            FlowLayoutPanel precision = new FlowLayoutPanel();
+            TableLayoutPanel precision = new TableLayoutPanel();
             precision.Dock = DockStyle.Fill;
-            precision.FlowDirection = FlowDirection.LeftToRight;
-            precision.WrapContents = false;
-            precision.AutoSize = false;
-            precision.Padding = new Padding(2, 0, 0, 0);
+            precision.AutoSize = true;
+            precision.ColumnCount = 3;
+            precision.RowCount = 1;
+            precision.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            precision.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100));
+            precision.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            precision.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            precision.Padding = new Padding(2, 1, 2, 2);
 
             Button minus = PrecisionButton("−");
             Label label = new Label();
             label.AutoSize = false;
-            label.Width = 54;
-            label.Height = 24;
+            label.Dock = DockStyle.Fill;
+            label.MinimumSize = new Size(58, 28);
             label.TextAlign = ContentAlignment.MiddleCenter;
             label.Tag = suffix;
             Button plus = PrecisionButton("+");
             minus.Click += delegate { AdjustTrack(track, -1); };
             plus.Click += delegate { AdjustTrack(track, 1); };
-            precision.Controls.Add(minus);
-            precision.Controls.Add(label);
-            precision.Controls.Add(plus);
+            precision.Controls.Add(minus, 0, 0);
+            precision.Controls.Add(label, 1, 0);
+            precision.Controls.Add(plus, 2, 0);
             cell.Controls.Add(precision, 0, 1);
             valueLabel = label;
             return cell;
@@ -289,9 +295,11 @@ namespace WinGamma
         {
             Button button = new Button();
             button.Text = text;
-            button.Width = 30;
-            button.Height = 24;
-            button.Margin = new Padding(1);
+            button.AutoSize = true;
+            button.Dock = DockStyle.Fill;
+            button.MinimumSize = new Size(34, 28);
+            button.Margin = new Padding(2, 1, 2, 1);
+            button.Padding = new Padding(2, 0, 2, 0);
             button.TabStop = false;
             return button;
         }
